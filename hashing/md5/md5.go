@@ -1,6 +1,8 @@
 package md5
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 var s = [64]uint32{
 	7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
@@ -30,9 +32,9 @@ var K = [64]uint32{
 
 func pad(message *[]byte) {
 	originalLength := make([]byte, 8)
-	binary.BigEndian.PutUint64(originalLength, uint64(len(*message)))
-	*message = append(*message, 0x80) // 0x80 = '1000 0000' append a 1 bit, then 0 bits
-	for len(*message)%64 < 56 {       // append 0 bits until 64 bits (8 bytes) before 512 bits (64 bytes) multiple
+	binary.LittleEndian.PutUint64(originalLength, uint64(len(*message)*8)) // length in bits
+	*message = append(*message, 0x80)                                      // 0x80 = '1000 0000' append a 1 bit, then 0 bits
+	for len(*message)%64 < 56 {                                            // append 0 bits until 64 bits (8 bytes) before 512 bits (64 bytes) multiple
 		*message = append(*message, 0x00) // 0x00 = '0000 0000'
 	}
 	*message = append(*message, originalLength...)
@@ -44,35 +46,36 @@ func process(message []byte) (digest [16]byte) {
 	b0 := uint32(0xefcdab89)
 	c0 := uint32(0x98badcfe)
 	d0 := uint32(0x10325476)
-	for i := uint32(0); i < uint32(len(message)); i += 64 {
+	for chunkStart := uint32(0); chunkStart < uint32(len(message)); chunkStart += 64 {
 		// Initialize hash value for this chunk
 		A := a0
 		B := b0
 		C := c0
 		D := d0
 
-		for j := uint32(0); j < 64; j++ {
+		for i := uint32(0); i < 64; i++ {
 			var F uint32
 			var g uint32
-			switch {
-			case j < 16:
-				F = (B & C) | ((^B) & D)
-				g = j
-			case j >= 16 && j < 32:
-				F = (D & B) | ((^D) & C)
-				g = (5*j + 1) % 16
-			case j >= 32 && j < 48:
+			if i <= 15 {
+				F = (B & C) | ((0xFF ^ B) & D)
+				g = i
+			} else if i <= 31 {
+				F = (D & B) | ((0xFF ^ D) & C)
+				g = (5*i + 1) % 16
+			} else if i <= 47 {
 				F = B ^ C ^ D
-				g = (3*j + 5) % 16
-			case j >= 48:
-				F = C ^ (B | (^D))
-				g = (7 * j) % 16
+				g = (3*i + 5) % 16
+			} else if i <= 63 {
+				F = C ^ (B | (0xFF ^ D))
+				g = (7 * i) % 16
 			}
-			F = F + A + K[j] + binary.LittleEndian.Uint32(message[i+g*4:i+(g+1)*4]) // select a 32 bit (4 bytes) block
+			subMessage := message[g*4 : (g+1)*4] // select a 32 bit (4 bytes) block
+			block := binary.LittleEndian.Uint32(subMessage)
+			chain := A + F + block + K[i]
 			A = D
 			D = C
 			C = B
-			B = B + F<<s[j]
+			B = B + chain<<s[i]
 		}
 		// Add this chunk's hash to result so far:
 		a0 += A
