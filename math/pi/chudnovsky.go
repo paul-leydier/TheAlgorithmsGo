@@ -1,3 +1,9 @@
+// chudnovsky.go
+// description: Implementation of the Chudnovsky algorithm for pi approximation.
+// author: [Paul Leydier] (https://github.com/paul-leydier)
+// ref: https://en.wikipedia.org/wiki/Chudnovsky_algorithm
+// see: chudnovky_test.go
+
 package pi
 
 import (
@@ -8,7 +14,10 @@ import (
 
 const prec = 15000
 
+// Chudnovsky returns an approximation of pi, computed using the Chudnovsky algorithm.
 // https://en.wikipedia.org/wiki/Chudnovsky_algorithm
+// This algorithm is based on Ramanujan's pi formula
+// https://en.wikipedia.org/wiki/Srinivasa_Ramanujan#Mathematical_achievements
 func Chudnovsky(q int) (*big.Float, int) {
 	digitsPerRound := math.Log10(151931373056000)
 	C := new(big.Float).SetPrec(prec).Mul(big.NewFloat(426880), new(big.Float).Sqrt(big.NewFloat(10005)))
